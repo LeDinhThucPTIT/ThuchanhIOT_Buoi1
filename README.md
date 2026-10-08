@@ -4,7 +4,7 @@
 
 | Họ và tên | Mã sinh viên |
 | :--- | :---: |
-| Lê Đình Thức | B23DCCN003 |
+| Lê Đình Thức | B23DCCN803 |
 | Nguyễn Văn A | B21DCCN002 |
 | Nguyễn Văn B | B23DCCNxxx |
 
