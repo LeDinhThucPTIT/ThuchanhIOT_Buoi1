@@ -2,7 +2,11 @@
 
 ## 1. Thông tin sinh viên
 
-- Họ tên: Lê Đình Thức - MSV: B23DCCN803
+| Họ và tên | Mã sinh viên |
+| :--- | :---: |
+| Lê Đình Thức | B23DCCN003 |
+| Nguyễn Văn A | B21DCCN002 |
+| Nguyễn Văn B | B23DCCNxxx |
 
 ## 2. Mục tiêu
 
