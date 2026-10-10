@@ -5,7 +5,7 @@
 | Họ và tên | Mã sinh viên |
 | :--- | :---: |
 | Lê Đình Thức | B23DCCN803 |
-| Nguyễn Văn A | B21DCCN002 |
+| Đỗ Minh Hoàng | B23DCCN328 |
 | Nguyễn Văn B | B23DCCNxxx |
 
 ## 2. Mục tiêu
