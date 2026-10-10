@@ -6,7 +6,7 @@
 | :--- | :---: |
 | Lê Đình Thức | B23DCCN803 |
 | Đỗ Minh Hoàng | B23DCCN328 |
-| Nguyễn Văn B | B23DCCNxxx |
+| Nguyễn Hoàng Quốc Việt | B23DCCN897 |
 
 ## 2. Mục tiêu
 
