@@ -1,245 +1,285 @@
-# Thực hành Python với MQTT
+# Thực hành lập trình Python với giao thức MQTT
 
-Bộ mã nguồn cho ba bài thực hành: truyền thông điệp, giám sát cảm biến và điều khiển đèn thông minh. Họ tên, mã sinh viên và MQTT broker được cấu hình khi chạy; không cần sửa mã nguồn.
+## 1. Thông tin sinh viên
 
-## 1. Cài đặt
+| Họ và tên | Mã sinh viên |
+| :--- | :---: |
+| Lê Đình Thức | B23DCCN803 |
+| Đỗ Minh Hoàng | B23DCCN328 |
+| Nguyễn Văn B | B23DCCNxxx |
 
-Các chương trình MQTT dùng Python 3.9 trở lên và `paho-mqtt`. Broker Python cục bộ và kiểm thử cần Python 3.10 trở lên.
+## 2. Mục tiêu
 
-Trên macOS/Linux, mở terminal trong thư mục dự án:
+Thực hành kết nối ứng dụng Python tới MQTT broker, gửi và nhận
+thông điệp qua topic, tổ chức payload JSON và mô phỏng hệ thống
+giám sát, điều khiển thiết bị IoT.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-broker.txt
+Bài thực hành gồm:
+- Bài 1: Gửi và nhận thông điệp MQTT.
+- Bài 2: Mô phỏng cảm biến nhiệt độ, độ ẩm.
+- Bài 3: Mô phỏng điều khiển đèn thông minh hai chiều.
+
+## 3. Môi trường và cấu hình
+
+- Ngôn ngữ: Python 3.
+- Thư viện: paho-mqtt 2.x.
+- Công cụ: Visual Studio Code và terminal.
+- Thiết bị IoT được mô phỏng bằng Python.
+
+Cài đặt thư viện:
+
+```cmd
+py -m pip install "paho-mqtt>=2,<3"
 ```
 
-Trên Windows PowerShell:
+Cấu hình broker trong các file:
 
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-broker.txt
+```python
+BROKER = "test.mosquitto.org"
+PORT = 1883
 ```
 
-Mỗi terminal mới cần kích hoạt `.venv`. Nếu đã có broker của lớp, chỉ cần cài `python -m pip install -r requirements.txt`.
+Broker được sử dụng qua MQTT TCP, không dùng TLS và không yêu cầu
+username/password. Các chương trình giao tiếp với nhau phải cấu hình
+cùng broker, cổng và topic tương ứng.
 
-## 2. MQTT broker
+## 4. Cấu trúc chương trình
 
-Mặc định tất cả chương trình kết nối `127.0.0.1:1883`, MQTT 3.1.1 qua TCP, không yêu cầu tài khoản. Chạy broker cục bộ trong một terminal riêng và giữ terminal này mở:
-
-```bash
-python broker_local.py
+```text
+BUOI1/
+├── BAI1/
+│   ├── publisher_bai1.py
+│   └── subscriber_bai1.py
+├── BAI2/
+│   ├── sensor_publisher_bai2.py
+│   └── monitor_subscriber_bai2.py
+├── BAI3/
+│   ├── device_bai3.py
+│   └── controller_bai3.py
+└── README.md
 ```
 
-Broker này dùng aMQTT, chỉ nhận kết nối trên máy đang chạy. Đèn và cảm biến là mô phỏng phần mềm; không cần phần cứng.
+Các lệnh dưới đây được chạy từ thư mục gốc BUOI1.
+Mỗi bài sử dụng hai terminal.
 
-Nếu port 1883 đang được sử dụng:
+## 5. Bài 1 — Gửi và nhận thông điệp
 
-```bash
-python broker_local.py --port 1884
+### Quy trình thực hiện
+
+1. Xây dựng subscriber kết nối tới broker.
+2. Subscriber đăng ký topic `iot/lab/message` và chờ thông điệp.
+3. Xây dựng publisher gửi lời chào kèm họ tên và mã sinh viên
+   lên cùng topic.
+4. Broker chuyển thông điệp tới subscriber.
+5. Subscriber giải mã payload và hiển thị topic, nội dung,
+   thời điểm nhận.
+
+### Cách chạy
+
+Terminal 1 — chạy subscriber trước:
+
+```cmd
+py BAI1/subscriber_bai1.py
 ```
 
-Khi đó thêm `--port 1884` cho **mọi** chương trình bên dưới. Nếu dùng broker bên ngoài, bỏ qua `broker_local.py` và thêm cùng `--host DIA_CHI_BROKER --port PORT` cho cả hai chương trình của từng bài.
+Chờ thông báo đăng ký topic thành công.
 
-Các biến môi trường tùy chọn:
+Terminal 2 — chạy publisher:
 
-| Biến | Mặc định | Ý nghĩa |
-| --- | --- | --- |
-| `MQTT_HOST` | `127.0.0.1` | Địa chỉ broker |
-| `MQTT_PORT` | `1883` | Cổng MQTT |
-| `MQTT_USERNAME` | Không đặt | Tài khoản broker |
-| `MQTT_PASSWORD` | Không đặt | Mật khẩu broker |
-| `MQTT_TLS` | `0` | Đặt `1` để bật TLS |
-| `MQTT_CA_CERT` | Không đặt | Đường dẫn CA riêng; mặc định dùng CA hệ thống |
-| `STUDENT_NAME` | Không đặt | Họ tên sinh viên |
-| `STUDENT_ID` | Không đặt | Mã sinh viên |
-
-Ví dụ cấu hình broker của lớp trên macOS/Linux; thay địa chỉ bằng broker thực tế:
-
-```bash
-export MQTT_HOST="dia-chi-broker-cua-lop"
-export MQTT_PORT="1883"
-export STUDENT_NAME="Họ tên của bạn"
-export STUDENT_ID="Mã sinh viên của bạn"
+```cmd
+py BAI1/publisher_bai1.py
 ```
 
-PowerShell dùng `$env:MQTT_HOST="dia-chi-broker-cua-lop"` và tương tự cho các biến khác. Các biến chỉ áp dụng trong terminal đã đặt chúng. Mọi chương trình hỗ trợ `--host`, `--port`, `--username`, `--password`, `--tls`, `--ca-cert`; dùng `--help` để xem tùy chọn. Khi broker yêu cầu TLS, bật `--tls` và đặt đúng port do broker cung cấp, thường là 8883. Cấu hình tài khoản qua biến môi trường để tránh ghi mật khẩu vào mã nguồn hoặc Git.
+### Kết quả đạt được
 
-## 3. Bài 1 gửi và nhận thông điệp
+Hai chương trình kết nối thành công và trao đổi thông điệp
+qua đúng topic.
 
-Terminal A, chạy subscriber trước và chờ dòng `Đang lắng nghe`:
-
-```bash
-python subscriber_bai1.py
-```
-
-Terminal B:
-
-```bash
-python publisher_bai1.py --name "Họ tên của bạn" --student-id "Mã sinh viên của bạn"
-```
-
-Nếu bỏ `--name`/`--student-id` và chưa đặt biến môi trường, chương trình hỏi từ bàn phím. Để gửi nhiều lần:
-
-```bash
-python publisher_bai1.py --count 3 --interval 1
-```
-
-Gửi nhiều nội dung khác nhau liên tiếp:
-
-```bash
-python publisher_bai1.py --messages "Xin chào" "Dữ liệu mới" "Tạm biệt" --interval 0.5
-```
-
-`--messages` ưu tiên hơn `--message`. Khi kết hợp `--count 2`, toàn bộ danh sách được gửi hai lượt theo đúng thứ tự. Subscriber chạy liên tục đến khi nhấn `Ctrl+C`.
-
-Topic: `iot/lab/message`. Subscriber hiển thị topic, lời chào kèm danh tính và thời điểm nhận theo giờ máy đang chạy:
+Kết quả thực tế tại subscriber:
 
 ```text
 Nhan duoc message:
 Topic: iot/lab/message
-Payload: Xin chao tu client Python MQTT - Mã sinh viên của bạn - Họ tên của bạn
-Time: 10:15:20
+Payload: Xin chao tu client Python MQTT - B23DCCN803 - Le Dinh Thuc
+Time: 15:35:05
 ```
 
-## 4. Bài 2 mô phỏng cảm biến
+Subscriber hiển thị đầy đủ thông tin theo yêu cầu và tiếp tục
+lắng nghe đến khi người dùng nhấn Ctrl+C.
 
-Terminal A:
+## 6. Bài 2 — Mô phỏng cảm biến nhiệt độ và độ ẩm
 
-```bash
-python monitor_subscriber_bai2.py
+### Quy trình thực hiện
+
+1. Xây dựng chương trình mô phỏng cảm biến `sensor01`.
+2. Sinh nhiệt độ ngẫu nhiên trong khoảng 25–40°C và độ ẩm
+   trong khoảng 30–80%, làm tròn một chữ số thập phân.
+3. Tạo payload gồm `device_id`, `temperature`, `humidity`
+   và chuyển sang JSON bằng `json.dumps()`.
+4. Publish dữ liệu lên topic `iot/lab/sensor01/data`.
+5. Sau mỗi lần gửi thành công, nghỉ 3 giây rồi tiếp tục.
+6. Chương trình giám sát subscribe cùng topic, đọc JSON
+   bằng `json.loads()` và hiển thị dữ liệu.
+7. Kiểm tra hai điều kiện độc lập:
+   - Nhiệt độ > 35°C: cảnh báo nhiệt độ cao.
+   - Độ ẩm < 40%: cảnh báo độ ẩm thấp.
+
+### Cách chạy
+
+Terminal 1 — chạy giám sát trước:
+
+```cmd
+py BAI2/monitor_subscriber_bai2.py
 ```
 
-Terminal B:
+Terminal 2 — chạy cảm biến:
 
-```bash
-python sensor_publisher_bai2.py
+```cmd
+py BAI2/sensor_publisher_bai2.py
 ```
 
-Publisher gửi JSON lên `iot/lab/sensor01/data` mỗi 3 giây, nhiệt độ ngẫu nhiên 20–40 °C và độ ẩm 30–80%. Payload gồm đúng ba trường `device_id`, `temperature`, `humidity`.
+### Kết quả đạt được
 
-Để chắc chắn xuất hiện cả hai cảnh báo, chạy:
+Cảm biến gửi liên tục các payload JSON. Chương trình giám sát
+nhận được dữ liệu, hiển thị tên thiết bị, nhiệt độ, độ ẩm
+và thời gian nhận.
 
-```bash
-python sensor_publisher_bai2.py --temperature 36.1 --humidity 38.7 --count 3
-```
+Một số kết quả quan sát được:
 
-Kết quả mong đợi trên monitor:
+| Nhiệt độ | Độ ẩm | Kết quả |
+|---|---|---|
+| 26.6°C | 35.4% | Cảnh báo độ ẩm thấp |
+| 28.8°C | 69.7% | Không cảnh báo |
+| 33.1°C | 40.5% | Không cảnh báo |
+| 36.5°C | 43.7% | Cảnh báo nhiệt độ cao |
+
+Ví dụ tại thời điểm 15:39:22:
 
 ```text
+Time: 15:39:22
 Device: sensor01
-Temperature: 36.1 C
-Humidity: 38.7 %
+Temperature: 36.5 C
+Humidity: 43.7 %
 CANH BAO: Nhiet do cao
-CANH BAO: Do am thap
 ```
 
-Cảnh báo khi nhiệt độ **> 35** và độ ẩm **< 40**. Tại đúng 35 °C và 40% không cảnh báo. Dữ liệu JSON sai hoặc thiếu trường được thông báo và bỏ qua; monitor tiếp tục chạy. `--count 0` là chạy liên tục, `--interval` đổi chu kỳ nếu cần thử nhanh.
+Kết quả cho thấy chương trình phân tích được JSON và cảnh báo
+đúng ngưỡng đối với các mẫu đã quan sát. Khoảng cách nhận dữ liệu
+xấp xỉ 3 giây, có thể tăng do thời gian truyền và xác nhận MQTT.
 
-### Mở rộng nhiều cảm biến và bảng theo dõi
+## 7. Bài 3 — Điều khiển đèn thông minh
 
-Terminal A, theo dõi tất cả cảm biến với mỗi mẫu trên một dòng:
+### Quy trình thực hiện
 
-```bash
-python monitor_subscriber_bai2.py --format table
+1. Xây dựng thiết bị mô phỏng `light01`, trạng thái ban đầu là OFF.
+2. Thiết bị subscribe topic `iot/lab/light01/cmd`.
+3. Controller subscribe topic `iot/lab/light01/status`.
+4. Người dùng nhập ON hoặc OFF tại controller.
+5. Controller publish lệnh lên topic điều khiển.
+6. Thiết bị nhận lệnh hợp lệ và cập nhật biến trạng thái đèn.
+7. Thiết bị publish trạng thái dạng JSON lên topic phản hồi.
+8. Controller nhận phản hồi và hiển thị trạng thái hiện tại.
+
+Controller sử dụng xử lý mạng nền để vẫn nhận phản hồi MQTT
+trong khi chờ nhập lệnh từ bàn phím.
+
+### Cách chạy
+
+Terminal 1 — chạy thiết bị trước:
+
+```cmd
+py BAI3/device_bai3.py
 ```
 
-Terminal B, mô phỏng hai cảm biến trong cùng chương trình:
+Chờ thiết bị đăng ký topic thành công.
 
-```bash
-python sensor_publisher_bai2.py --device-ids sensor01 sensor02
+Terminal 2 — chạy controller:
+
+```cmd
+py BAI3/controller_bai3.py
 ```
 
-Mỗi chu kỳ, mỗi cảm biến gửi một mẫu riêng lên `iot/lab/<device_id>/data`; hai cảm biến có giá trị ngẫu nhiên độc lập. `--count 3` nghĩa là ba mẫu **cho mỗi cảm biến**. Mặc định monitor subscribe `iot/lab/+/data` và kiểm tra `device_id` trong payload khớp topic. Dùng `--device-ids sensor02` để chỉ xem sensor02, hoặc giữ `--format lines` để xem từng khối dữ liệu như bài cơ bản.
+Các lệnh hỗ trợ:
+
+| Lệnh | Chức năng |
+|---|---|
+| ON | Bật đèn |
+| OFF | Tắt đèn |
+| EXIT | Kết thúc controller |
+
+### Kết quả đạt được
+
+Thiết bị nhận được cả lệnh ON và OFF, cập nhật trạng thái
+tương ứng và tạo phản hồi JSON.
+
+Khi nhận ON, terminal thiết bị hiển thị:
 
 ```text
-Time     | Device       | Temp (C) | Hum (%)  | Cảnh báo
-10:15:20 | sensor01     |     28.5 |     65.2 | Bình thường
-10:15:20 | sensor02     |     36.1 |     38.7 | CANH BAO: Nhiet do cao; CANH BAO: Do am thap
+Nhan lenh: ON
+Den: BAT
+Da dua phan hoi vao hang doi gui: {"device_id": "light01", "status": "ON"}
 ```
 
-## 5. Bài 3 điều khiển đèn
+Khi nhận OFF, terminal thiết bị hiển thị:
 
-Terminal A, chạy thiết bị trước và chờ dòng `Thiết bị light01 sẵn sàng`:
-
-```bash
-python device_bai3.py
+```text
+Nhan lenh: OFF
+Den: TAT
+Da dua phan hoi vao hang doi gui: {"device_id": "light01", "status": "OFF"}
 ```
 
-Terminal B:
+Controller nhận được phản hồi OFF:
 
-```bash
-python controller_bai3.py
+```text
+Trang thai nhan duoc:
+{"device_id": "light01", "status": "OFF"}
+Den hien tai: TAT
 ```
 
-Nhập `ON`, `OFF`, sau đó `EXIT` để thoát controller. Thiết bị subscribe `iot/lab/light01/cmd` và publish JSON trên `iot/lab/light01/status` sau **mỗi** lệnh hợp lệ, kể cả lệnh lặp lại:
+Kết quả xác nhận hệ thống giao tiếp hai chiều: controller gửi
+lệnh tới thiết bị và thiết bị phản hồi trạng thái về controller.
 
-```json
-{"device_id": "light01", "status": "ON"}
+## 8. Vấn đề gặp phải và cách khắc phục
+
+### Thiếu thư viện
+
+Ban đầu chương trình báo:
+
+```text
+ModuleNotFoundError: No module named 'paho'
 ```
 
-Thiết bị bắt đầu ở trạng thái `OFF`. Topic trạng thái có `retain=True`, nên controller mở sau thiết bị vẫn nhận trạng thái mới nhất. Lệnh điều khiển không retained. Lệnh sai không thay đổi đèn; controller và thiết bị đều báo lỗi. Controller chờ tối đa 5 giây cho phản hồi; nếu chưa có, kiểm tra thiết bị đang chạy và cả hai dùng cùng broker.
+Khắc phục bằng cách cài paho-mqtt với cùng Python Launcher
+được sử dụng để chạy chương trình:
 
-Demo không cần nhập bàn phím:
-
-```bash
-python controller_bai3.py --commands ON OFF EXIT
+```cmd
+py -m pip install "paho-mqtt>=2,<3"
 ```
 
-Mặc định chương trình dùng một thiết bị `light01` và một controller. Trạng thái retained chỉ là trạng thái được gửi gần nhất, không phải dấu hiệu thiết bị còn online.
+### Timeout khi kết nối broker
 
-### Mở rộng điều khiển đèn quạt và bơm
+Kết nối tới `mqtt.eclipseprojects.io:1883` bị timeout.
+Kiểm tra bằng Test-NetConnection cho kết quả
+`TcpTestSucceeded: False`.
 
-Terminal A, mô phỏng cả ba thiết bị với trạng thái độc lập:
+Sau khi chuyển cấu hình các chương trình sang
+`test.mosquitto.org:1883`, chương trình kết nối và trao đổi
+dữ liệu thành công.
 
-```bash
-python device_bai3.py --device-ids light01 fan01 pump01
-```
+### NameError khi tạo lời chào
 
-Terminal B:
+Publisher từng báo NameError do đưa mã sinh viên trực tiếp
+vào dấu ngoặc nhọn của f-string khiến Python hiểu đó là tên biến.
 
-```bash
-python controller_bai3.py --device-ids light01 fan01 pump01
-```
+Khắc phục bằng cách lưu thông tin trong các biến chuỗi
+`MA_SINH_VIEN`, `HO_TEN`, rồi sử dụng các biến này để tạo payload.
 
-Nhập `light01 ON`, `fan01 ON`, `pump01 OFF` để chọn thiết bị. Lệnh `ON`/`OFF` không có tên áp dụng cho thiết bị đầu tiên trong danh sách, hoặc thiết bị được chọn bằng `--device-id`. Dùng `EXIT` để thoát. Thiết bị chưa có trong danh sách hoặc lệnh sai sẽ báo lỗi và không gửi lên broker.
+## 9. Tổng kết
 
-| Thiết bị | Topic lệnh | Topic trạng thái |
-| --- | --- | --- |
-| `light01` | `iot/lab/light01/cmd` | `iot/lab/light01/status` |
-| `fan01` | `iot/lab/fan01/cmd` | `iot/lab/fan01/status` |
-| `pump01` | `iot/lab/pump01/cmd` | `iot/lab/pump01/status` |
+Ba bài thực hành đã triển khai được các chức năng:
+- Gửi và nhận thông điệp theo mô hình publish/subscribe.
+- Truyền dữ liệu cảm biến dạng JSON và cảnh báo theo ngưỡng.
+- Điều khiển thiết bị và nhận phản hồi trạng thái qua hai topic.
 
-Một controller riêng cho quạt:
-
-```bash
-python controller_bai3.py --device-id fan01
-```
-
-Demo tự động cho ba thiết bị; đặt mỗi lệnh gồm hai từ trong dấu ngoặc kép:
-
-```bash
-python controller_bai3.py --device-ids light01 fan01 pump01 --commands "light01 ON" "fan01 ON" "pump01 ON" "fan01 OFF" EXIT
-```
-
-Tất cả thiết bị được chọn phải chạy trước. Có thể chạy một chương trình device cho cả ba, hoặc nhiều terminal với `--device-ids light01`, `--device-ids fan01`, `--device-ids pump01`. Mỗi ID chỉ nên có một mô phỏng đang chạy. ID có 1–64 ký tự, bắt đầu bằng chữ hoặc số, chỉ chứa chữ, số, `_` và `-`.
-
-## 6. Kiểm tra và kết quả
-
-Nhấn `Ctrl+C` để dừng subscriber, sensor, thiết bị và broker. Publisher hữu hạn tự thoát sau khi broker xác nhận các thông điệp QoS 1. Subscribe được đăng ký lại khi client tự kết nối lại.
-
-Chạy kiểm thử tự động; bộ kiểm thử mở broker riêng trên cổng tạm, khởi chạy sáu chương trình thật và dọn các tiến trình khi xong:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## 7. Các file nộp bài
-
-- `publisher_bai1.py`, `subscriber_bai1.py`
-- `sensor_publisher_bai2.py`, `monitor_subscriber_bai2.py`
-- `device_bai3.py`, `controller_bai3.py`
-- `mqtt_common.py` — module dùng chung, cần đi cùng sáu chương trình
-- `requirements.txt`, `README.md`, `README.txt`
-- `broker_local.py`, `requirements-broker.txt`, `tests/test_lab.py` — broker và kiểm thử tùy chọn
+Nhấn Ctrl+C để dừng các chương trình chạy liên tục.
+Nhập EXIT để kết thúc controller của bài 3.
